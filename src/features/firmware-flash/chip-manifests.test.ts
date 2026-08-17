@@ -20,9 +20,36 @@ describe("CHIP_MANIFEST", () => {
       expect(m.defaultBaudRate).toEqual(expect.any(Number));
       expect(m.defaultBaudRate).toBeGreaterThan(0);
       expect(m.flashSize).toMatch(/^0x[0-9a-fA-F]+$/);
+      // SiWx917's ROM ISP menu only exposes "burn the whole image" — no address-ranged
+      // erase, so there is no 4K-alignment rule or preset to validate.
+      if (id === "siwx917") {
+        expect(m.eraseRequires4KAlignment).toBe(false);
+        expect(Object.keys(m.erasePresets).length).toBe(0);
+        continue;
+      }
       expect(m.eraseRequires4KAlignment).toBe(true);
-      // Every chip must have at least one erase preset
+      // Every other chip must have at least one erase preset
       expect(Object.keys(m.erasePresets).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("only siwx917 is flashed without addresses", () => {
+    // FlashSegmentTable hides the address inputs and the add-image row on this flag, so a
+    // chip that really does take addresses must never be marked false by accident.
+    for (const id of CHIP_IDS) {
+      expect(CHIP_MANIFEST[id].flashUsesAddresses).toBe(id !== "siwx917");
+    }
+  });
+
+  it("addressless chips offer no erase presets to validate", () => {
+    // The two flags describe the same underlying fact — the bootloader, not the caller,
+    // decides where bytes land — so they must not drift apart.
+    for (const id of CHIP_IDS) {
+      const m = CHIP_MANIFEST[id];
+      if (!m.flashUsesAddresses) {
+        expect(m.eraseRequires4KAlignment).toBe(false);
+        expect(Object.keys(m.erasePresets).length).toBe(0);
+      }
     }
   });
 

@@ -286,6 +286,7 @@ Outputs JSON with raw USB metadata for all ports. Used for cross-OS debugging.
 | `t1` | T1 | 921600 |
 | `t5ai` (alias: `t5`) | T5AI | 921600 |
 | `ln882h` | LN882H | 115200 |
+| `siwx917` | SiWx917 | 115200 |
 | `esp32` | ESP32 | 460800 |
 | `esp32c3` | ESP32-C3 | 460800 |
 | `esp32c6` | ESP32-C6 | 460800 |
@@ -293,6 +294,46 @@ Outputs JSON with raw USB metadata for all ports. Used for cross-OS debugging.
 | `esp32s3` | ESP32-S3 | 460800 |
 
 Device names are case-insensitive (`--device T5AI`, `--device t5AI`, and `--device t5ai` are all equivalent).
+
+### SiWx917 notes
+
+`siwx917` only supports `flash`. Its ROM ISP bootloader ("BootLoader Version 1.1") drives a text
+menu rather than an address-ranged flash protocol, and that menu has no erase or read-back entry
+at all, so `erase` / `read` return an error for this chip. Segment start/end addresses are
+ignored — the bootloader decides placement itself.
+
+**Dual-core: two images.** SiWx917 runs an M4 application core and an NWP/TA wireless core, each
+with its own firmware, burned through different menu entries:
+
+| Image | Typical file | Menu entry | Slot | How often |
+|-------|--------------|-----------|------|-----------|
+| M4 application | `<project>.rps` (build output; also shipped as `_isp.bin` / `_QIO_*.bin`) | `4` Burn M4 Firmware | `1` (valid 1-f) | every build |
+| NWP/TA wireless | `RS9117_WC_SI.rps` (prebuilt blob under `platform/SiWx917/mcu/patch/`) | `B` Burn Wireless Firmware | `0` (valid 0-f) | once per board |
+
+You do not choose between them: the plugin reads the file's RPS header and routes it
+automatically (bit 0 of `control_flags` — 1 = M4, 0 = wireless; verified against 16 images of
+known type). Files that are not valid RPS containers — a `.bin`, `.hex`, `.s37`, or a truncated
+image — are rejected before the serial port is opened rather than pushed at the bootloader.
+
+**One image per run.** Pass a single firmware file; supplying multiple segments is an error.
+Burn the M4 application and the wireless firmware as two separate invocations.
+
+**Expect a slow transfer.** The ROM Kermit is stop-and-wait with 94-byte packets and full
+control-character quoting, so throughput is bounded by per-packet turnaround rather than baud
+rate — a 786 KiB M4 image measured 155 s and a 1.6 MiB wireless image 401 s. Do not type into
+the terminal while it runs; stray input is interpreted as a transfer-cancel character.
+
+**Verifying a burn.** The plugin reports the ROM's own completion message. For an independent
+check, reset into ISP mode and use the bootloader menu directly: `K` then a slot digit for a
+wireless image, `9` then a slot digit for an M4 one; the ROM answers `Integrity Passed`. Note
+that the menu is only usable straight after a reset — replaying the wake sequence at a board
+that is already at the menu does something else entirely.
+
+**ISP mode is manual.** Put the board into ISP mode yourself before flashing — hold the ISP
+button, tap Reset, release ISP; or, with no ISP button, pull GPIO_34/BOOT_MODE low across reset.
+There is no confirmed DTR/RTS auto-reset for this part, so the plugin prompts and then polls for
+the bootloader. Use the dedicated ISP UART (GPIO_8/RX, GPIO_9/TX @ 115200 per AN1431); on
+BRD2605A the JLink VCOM port is the console, not the ISP UART.
 
 ---
 

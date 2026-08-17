@@ -7,7 +7,7 @@ use crate::job::{FlashJob, FlashMode};
 use crate::plugin::FlashPlugin;
 use crate::plugins::{
     Bk7231nPlugin, Esp32Plugin, Esp32c3Plugin, Esp32c6Plugin, Esp32p4Plugin, Esp32s3Plugin,
-    Ln882hPlugin, T1Plugin, T2Plugin, T3Plugin, T5AIPlugin,
+    Ln882hPlugin, Siwx917Plugin, T1Plugin, T2Plugin, T3Plugin, T5AIPlugin,
 };
 
 /// Canonicalize a user-supplied chip id: trim, upper-case, and rewrite legacy
@@ -53,6 +53,8 @@ impl FlashPluginRegistry {
         log::debug!("Registered flash plugin: ESP32S3");
         plugins.insert("LN882H".to_string(), Arc::new(Ln882hPlugin));
         log::debug!("Registered flash plugin: LN882H");
+        plugins.insert("SIWX917".to_string(), Arc::new(Siwx917Plugin));
+        log::debug!("Registered flash plugin: SIWX917");
 
         Self { plugins }
     }
@@ -210,6 +212,8 @@ mod tests {
         assert!(r.get("ESP32S3").is_ok());
         assert!(r.get("ln882h").is_ok());
         assert!(r.get("LN882H").is_ok());
+        assert!(r.get("siwx917").is_ok());
+        assert!(r.get("SIWX917").is_ok());
         assert!(r.get("unknown").is_err());
     }
 
@@ -217,7 +221,7 @@ mod tests {
     fn list_chip_ids_only_real_plugins() {
         let r = FlashPluginRegistry::new();
         let ids = r.list_chip_ids();
-        assert_eq!(ids.len(), 11);
+        assert_eq!(ids.len(), 12);
         assert!(ids.contains(&"BK7231N".to_string()));
         assert!(ids.contains(&"T2".to_string()));
         assert!(ids.contains(&"T3".to_string()));
@@ -229,6 +233,7 @@ mod tests {
         assert!(ids.contains(&"ESP32P4".to_string()));
         assert!(ids.contains(&"ESP32S3".to_string()));
         assert!(ids.contains(&"LN882H".to_string()));
+        assert!(ids.contains(&"SIWX917".to_string()));
     }
 
     #[test]

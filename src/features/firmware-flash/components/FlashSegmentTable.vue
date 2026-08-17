@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
+import { chipManifest } from "../chip-manifests";
 import { useFirmwareFlashContext } from "../context";
 import { validateAddrRange } from "../hex";
 
@@ -21,9 +22,19 @@ const { onPickFile, addSegment, removeSegment } = ctx;
 
 const MAX_SEGMENTS = 10;
 
+/**
+ * Whether this chip is flashed by address at all. When it is not (SiWx917 hands whole images
+ * to a ROM bootloader that picks the location itself), the address inputs and the add-image
+ * row are hidden and no range validation runs — the values would be ignored either way.
+ */
+const usesAddresses = computed(
+  () => chipManifest(ctx.selectedChipId).flashUsesAddresses,
+);
+
 /** Per-segment inline range error (empty while either field is blank). */
 const segmentErrors = computed<Record<string, string>>(() => {
   const out: Record<string, string> = {};
+  if (!usesAddresses.value) return out;
   for (const seg of ctx.flashSegments) {
     if (!seg.startAddr.trim() || !seg.endAddr.trim()) {
       out[seg.id] = "";
@@ -48,7 +59,7 @@ const segmentErrors = computed<Record<string, string>>(() => {
       {{ t("flash.flashSegmentsTitle") }}
     </p>
     <p class="mb-3 text-xs leading-snug text-[var(--ty-text-muted)]">
-      {{ t("flash.hexHint") }}
+      {{ usesAddresses ? t("flash.hexHint") : t("flash.addresslessHint") }}
     </p>
 
     <!-- md+: table layout -->
@@ -59,10 +70,18 @@ const segmentErrors = computed<Record<string, string>>(() => {
             <th scope="col" class="w-9 pb-2 pr-1 text-center align-bottom">
               <span class="ops-field-label">#</span>
             </th>
-            <th scope="col" class="min-w-[7.5rem] pb-2 pr-2 align-bottom">
+            <th
+              v-if="usesAddresses"
+              scope="col"
+              class="min-w-[7.5rem] pb-2 pr-2 align-bottom"
+            >
               <span class="ops-field-label">{{ t("flash.addrStart") }}</span>
             </th>
-            <th scope="col" class="min-w-[7.5rem] pb-2 pr-2 align-bottom">
+            <th
+              v-if="usesAddresses"
+              scope="col"
+              class="min-w-[7.5rem] pb-2 pr-2 align-bottom"
+            >
               <span class="ops-field-label">{{ t("flash.addrEnd") }}</span>
             </th>
             <th scope="col" class="min-w-[12rem] pb-2 align-bottom">
@@ -84,7 +103,7 @@ const segmentErrors = computed<Record<string, string>>(() => {
               >
                 {{ index + 1 }}
               </td>
-              <td class="py-2.5 pr-2 align-middle">
+              <td v-if="usesAddresses" class="py-2.5 pr-2 align-middle">
                 <label :for="`flash-${seg.id}-start`" class="sr-only">{{
                   t("flash.addrStart")
                 }}</label>
@@ -99,7 +118,7 @@ const segmentErrors = computed<Record<string, string>>(() => {
                   :disabled="ctx.busy"
                 />
               </td>
-              <td class="py-2.5 pr-2 align-middle">
+              <td v-if="usesAddresses" class="py-2.5 pr-2 align-middle">
                 <label :for="`flash-${seg.id}-end`" class="sr-only">{{
                   t("flash.addrEnd")
                 }}</label>
@@ -185,7 +204,7 @@ const segmentErrors = computed<Record<string, string>>(() => {
         <p class="mb-3 text-xs font-semibold text-[var(--ty-text)]">
           {{ t("flash.segment") }} {{ index + 1 }}
         </p>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div v-if="usesAddresses" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <label
               :for="`flash-m-${seg.id}-start`"
@@ -275,8 +294,9 @@ const segmentErrors = computed<Record<string, string>>(() => {
       </div>
     </div>
 
+    <!-- Addressless chips take one image per run, so there is nothing to add a row for. -->
     <button
-      v-if="ctx.flashSegments.length < MAX_SEGMENTS"
+      v-if="usesAddresses && ctx.flashSegments.length < MAX_SEGMENTS"
       type="button"
       class="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-[var(--ty-border)] py-2 text-[var(--ty-text-muted)] transition-all hover:border-[var(--ty-primary)] hover:text-[var(--ty-primary)]"
       :disabled="ctx.busy"

@@ -171,8 +171,8 @@ enum Commands {
 // runtime — instead `device_list_matches_registry` asserts the two agree, so a
 // chip added to the registry can't silently drift out of the CLI.
 const SUPPORTED_DEVICES: &[&str] = &[
-    "bk7231n", "t2", "t3", "t1", "t5ai", "ln882h", "esp32", "esp32c3", "esp32c6", "esp32p4",
-    "esp32s3",
+    "bk7231n", "t2", "t3", "t1", "t5ai", "ln882h", "siwx917", "esp32", "esp32c3", "esp32c6",
+    "esp32p4", "esp32s3",
 ];
 
 fn chip_value_parser() -> impl TypedValueParser<Value = String> {
@@ -201,7 +201,9 @@ fn chip_value_parser() -> impl TypedValueParser<Value = String> {
 // When adding or modifying a chip, update both.
 fn default_baud(device: &str) -> u32 {
     match device.to_ascii_lowercase().as_str() {
-        "ln882h" => 115200,
+        // siwx917: the ROM ISP UART runs at a fixed 115200 (AN1431); the plugin ignores
+        // any other value rather than trying to renegotiate.
+        "ln882h" | "siwx917" => 115200,
         "esp32" | "esp32c3" | "esp32c6" | "esp32p4" | "esp32s3" => 460800,
         _ => 921600,
     }
@@ -837,6 +839,7 @@ mod tests {
             ("T3", "t3"),
             ("T1", "t1"),
             ("LN882H", "ln882h"),
+            ("SiWx917", "siwx917"),
             ("ESP32", "esp32"),
             ("ESP32C3", "esp32c3"),
             ("ESP32C6", "esp32c6"),
@@ -866,6 +869,8 @@ mod tests {
     fn default_baud_per_chip_family() {
         assert_eq!(default_baud("ln882h"), 115200);
         assert_eq!(default_baud("LN882H"), 115200);
+        // Fixed ISP UART rate — must not fall through to the 921600 default.
+        assert_eq!(default_baud("siwx917"), 115200);
         assert_eq!(default_baud("esp32"), 460800);
         assert_eq!(default_baud("esp32c3"), 460800);
         assert_eq!(default_baud("esp32c6"), 460800);

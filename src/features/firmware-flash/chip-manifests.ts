@@ -17,6 +17,16 @@ export interface ChipManifest {
    * (ESP + Beken families).
    */
   eraseRequires4KAlignment: boolean;
+  /**
+   * Whether a flash job is addressed at all.
+   *
+   * Every chip here but one writes to a caller-chosen flash offset, so the flash tab collects
+   * a start/end address per image. SiWx917 instead hands whole images to a ROM bootloader that
+   * decides placement itself, and its plugin ignores these fields — so showing them (and
+   * refusing to proceed until they validate) would ask for input that cannot matter. When this
+   * is false the address inputs and the multi-image row are hidden.
+   */
+  flashUsesAddresses: boolean;
   /** Predefined erase address ranges (chip-family specific; may not include all kinds). */
   erasePresets: Partial<
     Record<ErasePresetKind, { start: string; end: string }>
@@ -32,6 +42,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x00400000", // 4 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       fullChip: { start: "0x00000000", end: "0x003FFFFF" },
     },
@@ -43,6 +54,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x00400000", // 4 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       fullChip: { start: "0x00000000", end: "0x003FFFFF" },
     },
@@ -54,6 +66,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x00800000", // 8 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       fullChip: { start: "0x00000000", end: "0x007FFFFF" },
     },
@@ -65,6 +78,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x01000000", // 16 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       fullChip: { start: "0x00000000", end: "0x00FFFFFF" },
     },
@@ -76,6 +90,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x01000000", // 16 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       fullChip: { start: "0x00000000", end: "0x00FFFFFF" },
     },
@@ -87,6 +102,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 460800,
     flashSize: "0x00800000", // 8 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       authInfo: { start: "0x001EE000", end: "0x001FFFFF" },
       fullChipNoRf: { start: "0x00000000", end: "0x001EDFFF" },
@@ -99,6 +115,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x00800000", // 8 MiB — same layout as T5AI
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       authInfo: { start: "0x001EE000", end: "0x001FFFFF" },
       fullChipNoRf: { start: "0x00000000", end: "0x001EDFFF" },
@@ -111,6 +128,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 460800,
     flashSize: "0x00400000", // 4 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       authInfo: { start: "0x001EE000", end: "0x001FFFFF" },
       fullChipNoRf: { start: "0x00000000", end: "0x003FDFFF" },
@@ -123,6 +141,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x00200000", // 2 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       authInfo: { start: "0x001EE000", end: "0x001FFFFF" },
       fullChipNoRf: { start: "0x00000000", end: "0x001EDFFF" },
@@ -135,6 +154,7 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x00200000", // 2 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       authInfo: { start: "0x001EE000", end: "0x001FFFFF" },
       fullChipNoRf: { start: "0x00000000", end: "0x001EDFFF" },
@@ -147,9 +167,23 @@ export const CHIP_MANIFEST: Record<ChipId, ChipManifest> = {
     defaultLogBaudRate: 115200,
     flashSize: "0x00200000", // 2 MiB
     eraseRequires4KAlignment: true,
+    flashUsesAddresses: true,
     erasePresets: {
       fullChip: { start: "0x00000000", end: "0x00200000" },
     },
+  },
+  siwx917: {
+    rustPluginId: "SIWX917",
+    // Dedicated ISP UART per Silicon Labs AN1431 (GPIO_8/RX, GPIO_9/TX).
+    defaultBaudRate: 115200,
+    defaultAuthBaudRate: 115200,
+    defaultLogBaudRate: 115200,
+    flashSize: "0x00200000", // 2 MiB; informational only — read-back is not supported
+    // The ROM Kermit bootloader menu burns the whole image as one blob; it does not expose
+    // an address-ranged erase, so the erase UI has nothing to validate against.
+    eraseRequires4KAlignment: false,
+    flashUsesAddresses: false,
+    erasePresets: {},
   },
 };
 
@@ -161,6 +195,7 @@ const AUTH_ONLY_CHIP_MANIFEST: ChipManifest = {
   defaultLogBaudRate: 115200,
   flashSize: "0x00000000",
   eraseRequires4KAlignment: false,
+  flashUsesAddresses: false,
   erasePresets: {},
 };
 

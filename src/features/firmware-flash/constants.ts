@@ -7,6 +7,7 @@ export const CHIP_IDS = [
   "esp32p4",
   "esp32s3",
   "ln882h",
+  "siwx917",
   "t1",
   "t2",
   "t3",
